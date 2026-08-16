@@ -1,0 +1,76 @@
+package shishodb
+
+import (
+	"fmt"
+	"strings"
+
+	models "github.com/Sakaki-Aruka/shisho/models"
+)
+
+func findSeriesById(id int64) (*models.Series, error) {
+	var series models.Series
+	if err := db.Select(&series, "SELECT * FROM series WHERE id = ?", id); err != nil {
+		return nil, err
+	}
+
+	if series.Id == 0 {
+		return nil, fmt.Errorf("[Error] Series not found. (Id: %d)", id)
+	}
+
+	isbns, err := FindIsbnsBySeriesId(series.Id)
+	if err != nil {
+		return nil, err
+	}
+	series.Isbns = isbns
+
+	return &series, nil
+}
+
+func FindIsbnsBySeriesId(id int64) ([]string, error) {
+	var isbns []string
+	if err := db.Select(&isbns, "SELECT isbn FROM series_isbn WHERE series_id = ? ORDER BY isbn", id); err != nil {
+		return nil, err
+	}
+
+	return isbns, nil
+}
+
+func FindSeriesByFilter(exactFilters map[string]string, parshalFilters map[string]string) ([]models.Series, error) {
+	var filters []string
+	if len(exactFilters) > 0 {
+		for k, v := range exactFilters {
+			if v != "" {
+				filters = append(filters, buildExactFilter(k, v))
+			}
+		}
+	}
+
+	if len(parshalFilters) > 0 {
+		for k, v := range parshalFilters {
+			if v != "" {
+				filters = append(filters, buildParshalFilter(k, v))
+			}
+		}
+	}
+
+	where := strings.Join(filters, " AND ")
+	sql := "SELECT * FROM series"
+	if len(filters) > 0 {
+		sql = sql + " WHERE " + where
+	}
+
+	var series []models.Series
+	if err := db.Select(&series, sql); err != nil {
+		return nil, err
+	}
+
+	for i := 0; i < len(series); i++ {
+		s := &series[i]
+		isbns, err := FindIsbnsBySeriesId(s.Id)
+		if err == nil {
+			s.Isbns = isbns
+		}
+	}
+
+	return series, nil
+}

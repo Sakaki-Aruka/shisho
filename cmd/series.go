@@ -1,12 +1,12 @@
 /*
 Copyright © 2026 NAME HERE <EMAIL ADDRESS>
-
 */
 package cmd
 
 import (
 	"fmt"
 
+	"github.com/Sakaki-Aruka/shisho/cmd/series"
 	"github.com/spf13/cobra"
 )
 
@@ -25,6 +25,10 @@ to quickly create a Cobra application.`,
 	},
 }
 
+
+
 func init() {
 	rootCmd.AddCommand(seriesCmd)
+	
+	seriesCmd.AddCommand(series.SeriesListCmd())
 }
