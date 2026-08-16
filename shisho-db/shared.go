@@ -120,3 +120,11 @@ func GetDefaultPath() (string, error) {
 	path := filepath.Join(dir, ".config", "shisho", "book.db")
 	return path, nil
 }
+
+func buildExactFilter(columnName string, value string) string {
+	return columnName + " LIKE '" + value + "'"
+}
+
+func buildParshalFilter(columnName string, value string) string {
+	return columnName + " LIKE '%" + value + "%'"
+}
