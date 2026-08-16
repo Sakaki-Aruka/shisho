@@ -1,10 +1,12 @@
 package series
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
+	"text/template"
 
 	"github.com/Sakaki-Aruka/shisho/models"
 	shishodb "github.com/Sakaki-Aruka/shisho/shisho-db"
@@ -85,8 +87,10 @@ func seriesList(opt *seriesListOption) error {
 	}
 
 	if opt.Not {
-		for _, s := range series {
-			removePosessions(&s)
+		for i := range series {
+			if err := removePosessions(&series[i]); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -103,10 +107,38 @@ func seriesList(opt *seriesListOption) error {
 			}
 		}
 	} else {
-		// normal pattern
+		for _, line := range shortLine(&series) {
+			fmt.Println(line)
+		}
 	}
 
 	return nil
+}
+
+func shortLine(series *[]models.Series) []string {
+	var result []string
+	t, _ := template.New("").Parse("Id: {{printf \"%04d\" .Id}}, Filter matched: {{.Amount}}, Title: {{.Title}}")
+	buf := bytes.NewBufferString("")
+	for _, s := range *series {
+		values := struct { 
+			Id int64
+			Title string
+			Amount int
+		} { 
+			Id: s.Id,
+			Title: s.Title,
+			Amount: len(s.Isbns),
+		}
+
+		if err := t.Execute(buf, &values); err != nil {
+			continue
+		}
+
+		result = append(result, buf.String())
+		buf.Reset()
+	}
+
+	return result
 }
 
 func formatJson(series *[]models.Series) string {
