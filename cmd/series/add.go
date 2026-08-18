@@ -37,7 +37,7 @@ func (opt *seriesAddOption) isValid() error {
 }
 
 func SeriesAddCmd() *cobra.Command {
-	opt := &seriesAddOption{}
+	opt := &seriesAddOption{Stauts: models.ONGOING}
 
 	cmd := &cobra.Command{
 		Use: "add",
@@ -48,7 +48,7 @@ func SeriesAddCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&opt.Title, "title", "", "Series title")
-	cmd.Flags().Var(&opt.Stauts, "status", "Series status (ongoing / completed)")
+	cmd.Flags().Var(&opt.Stauts, "status", "Series status (ongoing / completed). Default 'ongoing'")
 	cmd.Flags().StringSliceVar(&opt.Isbns, "isbn", []string{}, "Series elements isbn list")
 
 	return cmd
