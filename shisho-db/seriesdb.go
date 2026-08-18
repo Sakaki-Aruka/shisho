@@ -104,3 +104,18 @@ func FindSeriesByFilter(exactFilters map[string]string, parshalFilters map[strin
 
 	return series, nil
 }
+
+func DeleteSeriesById(id int64) (int64, error) {
+	result, err := db.Exec("DELETE FROM series WHERE id = ?", id)
+	if err != nil {
+		return 0, fmt.Errorf("Delete series error (id: %d)", id)
+	}
+
+	affected, _ := result.RowsAffected()
+
+	if _, err := db.Exec("DELETE FROM series_isbn WHERE series_id = ?", id); err != nil {
+		return affected, fmt.Errorf("Delete series isbn error (series id: %d)", id)
+	}
+
+	return affected, nil
+}
