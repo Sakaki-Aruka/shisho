@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"text/template"
 
@@ -92,6 +93,11 @@ func seriesList(opt *seriesListOption) error {
 				return err
 			}
 		}
+	}
+
+	series = slices.DeleteFunc(series, func(s models.Series) bool { return len(s.Isbns) == 0 })
+	if len(series) == 0 {
+		return nil
 	}
 
 	if opt.Json {

@@ -12,6 +12,26 @@ const (
 	COMPLETED Status = "completed"
 )
 
+// cobra Custom Value method
+func (s *Status) String() string {
+	return string(*s)
+}
+
+// cobra Custom Value method
+func (s *Status) Type() string {
+	return "string"
+}
+
+// cobra Custom Value method
+func (s *Status) Set(val string) error {
+	status := Status(val)
+	if !status.IsValid() {
+		return fmt.Errorf("Invalid status type (%s)", val)
+	}
+	*s = status
+	return nil
+}
+
 func (s Status) IsValid() bool {
 	switch s {
 	case ONGOING, COMPLETED:

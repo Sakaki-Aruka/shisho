@@ -31,4 +31,5 @@ func init() {
 	rootCmd.AddCommand(seriesCmd)
 	
 	seriesCmd.AddCommand(series.SeriesListCmd())
+	seriesCmd.AddCommand(series.SeriesAddCmd())
 }

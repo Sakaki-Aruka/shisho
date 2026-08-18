@@ -1,13 +1,43 @@
 package shishodb
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
 	models "github.com/Sakaki-Aruka/shisho/models"
 )
 
-func findSeriesById(id int64) (*models.Series, error) {
+func InsertSeries(n *models.NewSeries) error {
+	result, err := db.Exec("INSERT INTO series (title, status) VALUES (?, ?)", n.Title, n.Status.String())
+	if err != nil {
+		return err
+	}
+
+	if len(n.Isbns) > 0 {
+		id, err := result.LastInsertId()
+		if err != nil {
+			return errors.New("Series Isbn insert error (generated id not found)")
+		}
+		for i := range n.Isbns {
+			isbn := n.Isbns[i]
+			if err := InsertIsbnToSeries(id, isbn); err != nil {
+				return errors.New("Series Isbn insert error (insert isbn error)")
+			}
+		}
+	}
+	return nil
+}
+
+func InsertIsbnToSeries(id int64, isbn string) error {
+	if _, err := db.Exec("INSERT INTO series_isbn VALUES (?, ?)", id, isbn); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func FindSeriesById(id int64) (*models.Series, error) {
 	var series models.Series
 	if err := db.Select(&series, "SELECT * FROM series WHERE id = ?", id); err != nil {
 		return nil, err
