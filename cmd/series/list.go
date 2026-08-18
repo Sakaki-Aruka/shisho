@@ -89,16 +89,20 @@ func seriesList(opt *seriesListOption) error {
 
 	if opt.Not {
 		for i := range series {
+			if len(series[i].Isbns) == 0 {
+				continue
+			}
 			if err := removePosessions(&series[i]); err != nil {
 				return err
 			}
 		}
+
+		series = slices.DeleteFunc(series, func(s models.Series) bool { return len(s.Isbns) == 0 })
 	}
 
-	series = slices.DeleteFunc(series, func(s models.Series) bool { return len(s.Isbns) == 0 })
 	if len(series) == 0 {
-		return nil
-	}
+			return nil
+		}
 
 	if opt.Json {
 		fmt.Println(formatJson(&series))
