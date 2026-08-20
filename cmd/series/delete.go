@@ -9,34 +9,39 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type seriesDeleteOption struct {
-	Ids []int64
-}
-
 func SeriesDeleteCmd() *cobra.Command {
-	opt := &seriesDeleteOption{}
-
 	cmd := &cobra.Command{
-		Use: "delete",
+		Use: "delete [id...]",
+		Args: cobra.MinimumNArgs(1),
 		Short: "Delete series",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return seriesDelete(opt)
+			var ids []int64
+			invalids := make([]string, 0)
+			for _, id := range args {
+				if n, err := strconv.ParseInt(id, 10, 64); err != nil {
+					invalids = append(invalids, id)
+				} else {
+					ids = append(ids, n)
+				}
+			}
+
+			if len(invalids) != 0 {
+				return fmt.Errorf("Id must be integer (invalid: %s)\n", strings.Join(invalids, ", "))
+			}
+			return seriesDelete(&ids)
 		},
 	}
-
-	cmd.Flags().Int64SliceVar(&opt.Ids, "id", []int64{}, "Delete series ids")
-
 	return cmd
 }
 
-func seriesDelete(opt *seriesDeleteOption) error {
-	if len(opt.Ids) == 0 {
+func seriesDelete(ids *[]int64) error {
+	if len(*ids) == 0 {
 		fmt.Println("Id not specified")
 		return nil
 	}
 
 	success := make([]string, 0)
-	for _, id := range opt.Ids {
+	for _, id := range *ids {
 		affected, err := shishodb.DeleteSeriesById(id);
 		if err != nil {
 			return err
