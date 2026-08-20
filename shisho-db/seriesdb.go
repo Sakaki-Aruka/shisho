@@ -3,9 +3,11 @@ package shishodb
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	models "github.com/Sakaki-Aruka/shisho/models"
+	"github.com/jmoiron/sqlx"
 )
 
 func InsertSeries(n *models.NewSeries) error {
@@ -118,4 +120,64 @@ func DeleteSeriesById(id int64) (int64, error) {
 	}
 
 	return affected, nil
+}
+
+func UpdateSeriesTitle(id int64, title string) error {
+	if _, err := db.Exec("UPDATE series SET title = ? WHERE id = ?", title, id); err != nil {
+		return err
+	}
+	return nil
+}
+
+func DeleteSeriesIsbn(id int64, isbns *[]string) (int64, error) {
+	if len(*isbns) == 0 {
+		return 0, errors.New("Cannot delete empty isbn list from a specified series")
+	}
+	query, params, err := sqlx.In("DELETE FROM series_isbn WHERE series_id = ? AND isbn IN (?)", id, *isbns)
+	if err != nil {
+		return 0, errors.New("Failed to create a query to delete isbn(s) from a specified series")
+	}
+	query = db.Rebind(query)
+	result, err := db.Exec(query, params...)
+	if err != nil {
+		return 0, errors.New("Failed to delete isbn(s) from a specified series")
+	}
+
+	if affected, err := result.RowsAffected(); err != nil {
+		return -1, nil
+	} else {
+		return affected, nil
+	}
+}
+
+func AddSeriesIsbn(id int64, isbns *[]string) (int64, error) {
+	if len(*isbns) == 0 {
+		return 0, errors.New("Cannot add empty isbn list to a specified series")
+	}
+
+	type entry struct {
+		Id   int64  `db:"id"`
+		Isbn string `db:"isbn"`
+	}
+
+	added := make([]string, 0)
+	var entries []entry
+	for _, isbn := range *isbns {
+		if slices.Contains(added, isbn) {
+			continue
+		}
+		entries = append(entries, entry{Id: id, Isbn: isbn})
+		added = append(added, isbn)
+	}
+
+	result, err := db.NamedExec("INSERT INTO series_isbn (series_id, isbn) VALUES (:id, :isbn)", entries)
+	if err != nil {
+		return 0, errors.New("Failed to insert isbn(s) to a specified series")
+	}
+
+	if affected, err := result.RowsAffected(); err != nil {
+		return -1, nil
+	} else {
+		return affected, nil
+	}
 }
