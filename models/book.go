@@ -87,7 +87,9 @@ func (n NewBook) ToBook() Book {
 }
 
 func (n NewBook) CanRegister() bool {
-	return !((n.Title == nil || *n.Title == "") && (n.Isbn == nil || *n.Isbn == "" || !code.IsValidIsbn(*n.Isbn)))
+	validTitle := n.Title != nil && *n.Title != ""
+	validIsbn := n.Isbn != nil && *n.Isbn != "" && code.IsValidIsbn(*n.Isbn)
+	return validTitle || validIsbn
 }
 
 func (n *NewBook) FillDataWithOpenBD() error {

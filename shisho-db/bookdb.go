@@ -109,9 +109,6 @@ func FindBookByFilter(exactFilters map[string]string, parshalFilters map[string]
 		sql = sql + " WHERE " + where
 	}
 
-	//debug
-	fmt.Printf("sql: %s, where: %s\n", sql, where)
-
 	var books []models.Book
 	if err := db.Select(&books, sql); err != nil {
 		return nil, err
