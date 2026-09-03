@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"errors"
+	"fmt"
 	"log"
 
 	"github.com/Sakaki-Aruka/shisho/models"
@@ -87,6 +88,8 @@ func add(cmd *cobra.Command, args []string) error {
 		log.Default().Printf("Insert error")
 		return err
 	}
+
+	fmt.Printf("Success to add a book. (Title: %s, Isbn: %s)\n", *book.Title, *book.Isbn)
 
 	return nil
 }
