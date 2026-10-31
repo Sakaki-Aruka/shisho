@@ -79,6 +79,16 @@ func bookAddEndpoint(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	fill := r.Header.Get("fill")
+	if strings.ToLower(fill) == "true" {
+		if err := (&new).FillDataWithOpenBD(); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte("failed to fill data"))
+			log.Printf("err (add): fill error. (%s)\n", err.Error())
+			return
+		}
+	}
+
 	if err := shishodb.InsertBook(new); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		log.Printf("err (add): insert error. (%s)\n", err.Error())
@@ -89,7 +99,7 @@ func bookAddEndpoint(w http.ResponseWriter, r *http.Request) {
 	j, _ := json.Marshal(book)
 	w.WriteHeader(http.StatusOK)
 	w.Write(j)
-	log.Printf("info (add): book added (id: %d)\n", book.Id)
+	log.Printf("info (add): book added (%s)\n", string(j))
 }
 
 func bookDeleteEndpoint(w http.ResponseWriter, r *http.Request) {
