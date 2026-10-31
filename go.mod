@@ -1,9 +1,12 @@
 module github.com/Sakaki-Aruka/shisho
 
-go 1.25.1
+go 1.27.1
 
 require (
+	github.com/Sakaki-Aruka/koa v0.0.0-20261011155847-bd3ff465d067
+	github.com/jmoiron/sqlx v1.4.0
 	github.com/spf13/cobra v1.10.2
+	github.com/tidwall/gjson v1.19.0
 	modernc.org/sqlite v1.56.0
 )
 
@@ -11,12 +14,10 @@ require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/jmoiron/sqlx v1.4.0 // indirect
 	github.com/mattn/go-isatty v0.0.24 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
-	github.com/tidwall/gjson v1.19.0 // indirect
 	github.com/tidwall/match v1.2.0 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
 	golang.org/x/sys v0.47.0 // indirect
