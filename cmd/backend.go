@@ -81,7 +81,7 @@ func bookAddEndpoint(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	
+
 	params := r.Header.Get("params")
 	if params == "" {
 		w.WriteHeader(http.StatusBadRequest)
@@ -90,11 +90,32 @@ func bookAddEndpoint(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	checkDuplicate := false
+	if f := r.Header.Get("check-duplicate"); strings.ToLower(f) == "true" {
+		checkDuplicate = true
+	}
+
 	new := models.NewBook{}
 	if err := json.Unmarshal([]byte(params), &new); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("invalid 'params'"))
 		log.Printf("err (add): invalid params. (%s)\n", err.Error())
+		return
+	}
+
+	if checkDuplicate {
+		if err := shishodb.CheckDuplicate(new); err != nil {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("book duplicated."))
+			log.Println("err (add): duplicated")
+			return
+		}
+	}
+
+	if !new.CanRegister() {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("invalid 'params'"))
+		log.Printf("err (add): invalid params.")
 		return
 	}
 

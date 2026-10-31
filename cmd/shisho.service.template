@@ -1,0 +1,17 @@
+[Unit]
+Description=books manager
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+# Write DBPATH
+ExecStart=/usr/local/bin/shisho handle --db {{.DBPATH}} --port 20215
+
+# Write USERNAME
+User={{.USERNAME}}
+
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
