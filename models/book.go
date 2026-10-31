@@ -2,6 +2,7 @@ package models
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -51,6 +52,10 @@ func (b Book) ToMap() map[string]any {
 	elements["ISBN"] = unwrapStr(b.Isbn)
 	elements["JanCode"] = unwrapStr(b.JanCode)
 	return elements
+}
+
+func (b Book) MarshalJSON() ([]byte, error) {
+	return json.Marshal(b.ToMap())
 }
 
 type NewBook struct {

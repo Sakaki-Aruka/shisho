@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/Sakaki-Aruka/shisho/models"
 	shishodb "github.com/Sakaki-Aruka/shisho/shisho-db"
@@ -97,20 +98,28 @@ func bookDeleteEndpoint(w http.ResponseWriter, r *http.Request) {
 	if i == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("need the 'ids' header"))
+		log.Println("err (del): no 'ids'")
 		return
 	}
 
 	if err := json.Unmarshal([]byte(i), &ids); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("invalid 'ids'"))
+		log.Printf("err (del): invalid ids. (%s)\n", err.Error())
 		return
 	}
 
 	if err := shishodb.DeleteBooksByIds(ids); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
+		log.Printf("err (del): failed to delete. (%s)\n", err.Error())
 		return
 	}
 	w.WriteHeader(http.StatusOK)
+	strlist := []string{}
+	for _, id := range ids {
+		strlist = append(strlist, strconv.FormatInt(id, 10))
+	}
+	log.Printf("info (del): delete books. (ids: %s)\n", strings.Join(strlist, ", "))
 }
 
 var port uint16
