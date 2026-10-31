@@ -8,7 +8,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/Sakaki-Aruka/shisho/code"
+	"github.com/Sakaki-Aruka/koa"
 	"github.com/tidwall/gjson"
 )
 
@@ -93,7 +93,7 @@ func (n NewBook) ToBook() Book {
 
 func (n NewBook) CanRegister() bool {
 	validTitle := n.Title != nil && *n.Title != ""
-	validIsbn := n.Isbn != nil && *n.Isbn != "" && code.IsValidIsbn(*n.Isbn)
+	validIsbn := n.Isbn != nil && *n.Isbn != "" && koa.FIsValid(*n.Isbn)
 	return validTitle || validIsbn
 }
 

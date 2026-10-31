@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Sakaki-Aruka/shisho/code"
+	"github.com/Sakaki-Aruka/koa"
 	"github.com/Sakaki-Aruka/shisho/models"
 	shishodb "github.com/Sakaki-Aruka/shisho/shisho-db"
 	"github.com/spf13/cobra"
@@ -24,7 +24,7 @@ func (opt *seriesAddOption) isValid() error {
 
 	invalid := make([]string, 0)
 	for _, isbn := range opt.Isbns {
-		if !code.IsValidIsbn(isbn) {
+		if !koa.FIsValid(isbn) {
 			invalid = append(invalid, isbn)
 		}
 	}
