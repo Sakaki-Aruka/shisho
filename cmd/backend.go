@@ -28,6 +28,10 @@ func handle(cmd *cobra.Command, args []string) error {
 	mux.HandleFunc("POST /books", bookAddEndpoint)
 	mux.HandleFunc("DELETE /books", bookDeleteEndpoint)
 
+	log.Printf("listening on localhost:%d\n", port)
+	if token != "" {
+		log.Println("token requires")
+	}
 	err := http.ListenAndServe(":"+strconv.FormatUint(uint64(port), 10), mux)
 	if err != nil {
 		return err
@@ -36,6 +40,13 @@ func handle(cmd *cobra.Command, args []string) error {
 }
 
 func bookGetEndpoint(w http.ResponseWriter, r *http.Request) {
+	if token != "" {
+		if t := r.Header.Get("token"); t != token {
+			w.WriteHeader(http.StatusUnauthorized)
+			log.Printf("err (get): authentication failed")
+			return
+		}
+	}
 	parshals := map[string]string{}
 	exacts := map[string]string{}
 	if p := r.Header.Get("parshals"); p != "" {
@@ -63,6 +74,14 @@ func bookGetEndpoint(w http.ResponseWriter, r *http.Request) {
 }
 
 func bookAddEndpoint(w http.ResponseWriter, r *http.Request) {
+	if token != "" {
+		if t := r.Header.Get("token"); t != token {
+			w.WriteHeader(http.StatusUnauthorized)
+			log.Printf("err (get): authentication failed")
+			return
+		}
+	}
+	
 	params := r.Header.Get("params")
 	if params == "" {
 		w.WriteHeader(http.StatusBadRequest)
@@ -103,6 +122,14 @@ func bookAddEndpoint(w http.ResponseWriter, r *http.Request) {
 }
 
 func bookDeleteEndpoint(w http.ResponseWriter, r *http.Request) {
+	if token != "" {
+		if t := r.Header.Get("token"); t != token {
+			w.WriteHeader(http.StatusUnauthorized)
+			log.Printf("err (get): authentication failed")
+			return
+		}
+	}
+
 	ids := []int64{}
 	i := r.Header.Get("ids")
 	if i == "" {
@@ -133,8 +160,10 @@ func bookDeleteEndpoint(w http.ResponseWriter, r *http.Request) {
 }
 
 var port uint16
+var token string
 
 func init() {
 	rootCmd.AddCommand(handleCmd)
 	handleCmd.Flags().Uint16Var(&port, "port", 20215, "Server port")
+	handleCmd.Flags().StringVar(&token, "token", "", "Authenticate token")
 }
