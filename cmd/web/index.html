@@ -1,0 +1,897 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f6f5f2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#18181b" media="(prefers-color-scheme: dark)">
+<title>shisho</title>
+<style>
+  :root {
+    --bg: #f6f5f2;
+    --surface: #ffffff;
+    --surface-2: #f0efeb;
+    --border: #e2e0da;
+    --text: #1f1f1f;
+    --muted: #6b6a66;
+    --accent: #2f6b4f;
+    --accent-text: #ffffff;
+    --accent-soft: #e3efe8;
+    --danger: #b3261e;
+    --danger-soft: #fbe9e7;
+    --warn: #8a5a00;
+    --shadow: 0 1px 2px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.06);
+    --radius: 12px;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #18181b;
+      --surface: #222226;
+      --surface-2: #2b2b30;
+      --border: #3a3a40;
+      --text: #ececec;
+      --muted: #a1a1a8;
+      --accent: #6fbf95;
+      --accent-text: #0f1f17;
+      --accent-soft: #23382d;
+      --danger: #f2827a;
+      --danger-soft: #3d2422;
+      --warn: #e0b45a;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 16px rgba(0,0,0,.3);
+      color-scheme: dark;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-text-size-adjust: 100%;
+    padding-bottom: calc(96px + env(safe-area-inset-bottom));
+  }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  .hidden { display: none !important; }
+
+  /* ---------- top bar ---------- */
+  .topbar {
+    position: sticky; top: 0; z-index: 10;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 16px;
+    padding-top: calc(10px + env(safe-area-inset-top));
+  }
+  .topbar-inner, .toolbar, main, .selbar-inner { max-width: 1120px; margin: 0 auto; }
+  .topbar-inner { display: flex; align-items: center; gap: 12px; }
+  .brand { font-weight: 700; font-size: 18px; letter-spacing: .02em; display: flex; align-items: baseline; gap: 8px; }
+  .brand small { font-weight: 400; color: var(--muted); font-size: 13px; }
+  .spacer { flex: 1; }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    min-height: 40px; padding: 0 14px;
+    border-radius: 10px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text);
+    white-space: nowrap;
+  }
+  .btn:hover { background: var(--surface-2); }
+  .btn:disabled { opacity: .55; cursor: default; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
+  .btn.primary:hover { filter: brightness(1.05); }
+  .btn.danger { background: var(--danger); border-color: var(--danger); color: #fff; font-weight: 600; }
+  .btn.ghost { background: transparent; border-color: transparent; }
+  .btn.ghost:hover { background: var(--surface-2); }
+  .btn.icon { width: 40px; padding: 0; }
+  .btn svg { width: 18px; height: 18px; flex: none; }
+  .btn.has-token { color: var(--accent); }
+
+  /* ---------- toolbar ---------- */
+  .toolbar {
+    display: grid;
+    grid-template-columns: 1fr auto auto auto;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .search { position: relative; }
+  .search svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; color: var(--muted); pointer-events: none; }
+  .field, .search input, select.field {
+    width: 100%; min-height: 40px;
+    border: 1px solid var(--border); border-radius: 10px;
+    background: var(--surface);
+    padding: 8px 12px;
+    font-size: 16px; /* iOS のズーム防止 */
+  }
+  .search input { padding-left: 40px; }
+  .field:focus, .search input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  textarea.field { min-height: 72px; resize: vertical; }
+
+  /* ---------- list ---------- */
+  main { padding: 12px 16px; }
+  .meta { color: var(--muted); font-size: 13px; margin: 4px 2px 10px; display: flex; gap: 12px; align-items: center; }
+  .meta label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+
+  .list { display: flex; flex-direction: column; gap: 8px; }
+  .row {
+    display: grid;
+    grid-template-columns: 28px 1fr;
+    gap: 4px 10px;
+    align-items: start;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px;
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+  }
+  .row:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
+  .row.selected { background: var(--accent-soft); border-color: var(--accent); }
+  .row .check { padding-top: 2px; }
+  .row input[type=checkbox], .meta input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
+  .row .title { font-weight: 600; word-break: break-word; }
+  .row .sub { color: var(--muted); font-size: 13px; word-break: break-word; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .chip { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); color: var(--muted); }
+  .chip.genre { background: var(--accent-soft); color: var(--accent); }
+  .col { display: none; }
+  .list-head { display: none; }
+
+  @media (min-width: 820px) {
+    .list { gap: 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
+    .row, .list-head {
+      grid-template-columns: 28px minmax(200px, 2.4fr) 1.3fr 1.2fr .9fr 80px 130px;
+      gap: 12px; align-items: center;
+      border: 0; border-radius: 0; border-bottom: 1px solid var(--border);
+      padding: 10px 14px;
+    }
+    .row:last-child { border-bottom: 0; }
+    .row:hover { background: var(--surface-2); }
+    .row.selected { background: var(--accent-soft); }
+    .list-head { display: grid; background: var(--surface-2); font-size: 12px; color: var(--muted); font-weight: 600; cursor: default; }
+    .row .sub, .row .chips { display: none; }
+    .row .main .memo { display: block; }
+    .col { display: block; color: var(--muted); font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .col.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .col.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+    .row .check { padding-top: 0; }
+  }
+  .memo { display: none; color: var(--muted); font-size: 12px; font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .state { text-align: center; color: var(--muted); padding: 48px 16px; }
+  .state .big { font-size: 16px; color: var(--text); margin-bottom: 6px; }
+
+  /* ---------- selection bar / FAB ---------- */
+  .selbar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+    background: var(--surface); border-top: 1px solid var(--border);
+    box-shadow: 0 -4px 16px rgba(0,0,0,.08);
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+    transform: translateY(110%); transition: transform .2s ease;
+  }
+  .selbar.show { transform: none; }
+  .selbar-inner { display: flex; align-items: center; gap: 8px; }
+  .fab {
+    position: fixed; right: 16px; bottom: calc(20px + env(safe-area-inset-bottom)); z-index: 15;
+    width: 56px; height: 56px; border-radius: 18px; border: 0;
+    background: var(--accent); color: var(--accent-text);
+    box-shadow: 0 6px 20px rgba(0,0,0,.2);
+    display: flex; align-items: center; justify-content: center;
+    transition: transform .2s ease, opacity .2s;
+  }
+  .fab svg { width: 26px; height: 26px; }
+  .fab.lifted { transform: translateY(-72px); }
+  .desktop-only { display: none; }
+  @media (min-width: 820px) {
+    .fab { display: none; }
+    .desktop-only { display: inline-flex; }
+  }
+
+  /* ---------- dialogs ---------- */
+  dialog {
+    border: 1px solid var(--border); border-radius: 16px;
+    background: var(--surface); color: var(--text);
+    padding: 0; width: min(560px, calc(100vw - 32px));
+    overflow: hidden; /* スクロールは .dlg-body 側で行う */
+    max-height: calc(100dvh - 48px);
+    box-shadow: var(--shadow);
+  }
+  dialog::backdrop { background: rgba(0,0,0,.4); }
+  .dlg { display: flex; flex-direction: column; max-height: inherit; }
+  .dlg-head { display: flex; align-items: center; gap: 8px; padding: 14px 16px; border-bottom: 1px solid var(--border); }
+  .dlg-head h2 { margin: 0; font-size: 17px; flex: 1; }
+  .dlg-body { padding: 16px; overflow-y: auto; }
+  .dlg-foot { display: flex; gap: 8px; justify-content: flex-end; padding: 12px 16px; border-top: 1px solid var(--border); flex-wrap: wrap; }
+  @media (max-width: 819px) {
+    dialog.sheet {
+      width: 100%; max-width: 100%; margin: auto 0 0 0;
+      border-radius: 18px 18px 0 0; border-bottom: 0;
+      max-height: 92dvh;
+    }
+    dialog.sheet .dlg-foot { padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
+    dialog.sheet .dlg-foot .btn { flex: 1; }
+  }
+
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .form-grid .full { grid-column: 1 / -1; }
+  @media (max-width: 480px) { .form-grid { grid-template-columns: 1fr; } }
+  .form-grid label > span { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+  .form-grid label > span em { color: var(--danger); font-style: normal; }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .toggles { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+  .toggles label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+  .toggles input { width: 18px; height: 18px; accent-color: var(--accent); }
+  .form-error { color: var(--danger); background: var(--danger-soft); border-radius: 8px; padding: 8px 12px; font-size: 14px; margin-bottom: 12px; }
+
+  dl.detail { display: grid; grid-template-columns: 96px 1fr; gap: 10px 12px; margin: 0; }
+  dl.detail dt { color: var(--muted); font-size: 13px; }
+  dl.detail dd { margin: 0; word-break: break-word; white-space: pre-wrap; }
+  dl.detail dd.empty { color: var(--muted); }
+
+  /* ---------- toast ---------- */
+  .toasts { position: fixed; left: 50%; transform: translateX(-50%); top: calc(12px + env(safe-area-inset-top)); z-index: 100; display: flex; flex-direction: column; gap: 8px; width: min(440px, calc(100vw - 32px)); pointer-events: none; }
+  .toast { background: var(--text); color: var(--bg); padding: 10px 14px; border-radius: 10px; box-shadow: var(--shadow); font-size: 14px; animation: pop .2s ease; }
+  .toast.error { background: var(--danger); color: #fff; }
+  .toast.warn { background: var(--warn); color: #fff; }
+  @keyframes pop { from { opacity: 0; transform: translateY(-6px); } }
+
+  .spinner { width: 22px; height: 22px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; margin: 0 auto 10px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media (max-width: 560px) {
+    .toolbar { grid-template-columns: 1fr 1fr auto; }
+    .toolbar .search { grid-column: 1 / -1; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">shisho <small id="count"></small></div>
+    <div class="spacer"></div>
+    <button class="btn primary desktop-only" id="addBtnDesktop" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      本を追加
+    </button>
+    <button class="btn icon ghost" id="tokenBtn" type="button" title="トークン設定" aria-label="トークン設定">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M10.8 12.2 20 3M16 7l3 3M14 9l2 2"/></svg>
+    </button>
+  </div>
+  <div class="toolbar">
+    <div class="search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="q" type="search" placeholder="タイトル・著者・ISBN などで検索" autocomplete="off" aria-label="検索">
+    </div>
+    <select id="genre" class="field" aria-label="ジャンル">
+      <option value="">すべてのジャンル</option>
+    </select>
+    <select id="sort" class="field" aria-label="並び順">
+      <option value="id-desc">新しい順</option>
+      <option value="id-asc">古い順</option>
+      <option value="title">タイトル順</option>
+      <option value="author">著者順</option>
+      <option value="price-desc">価格の高い順</option>
+      <option value="price-asc">価格の安い順</option>
+    </select>
+    <button class="btn icon" id="reloadBtn" type="button" title="再読み込み" aria-label="再読み込み">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>
+    </button>
+  </div>
+</header>
+
+<main>
+  <div class="meta">
+    <label><input type="checkbox" id="selectAll"> 表示中をすべて選択</label>
+    <span id="resultInfo"></span>
+  </div>
+  <div id="list" class="list" aria-live="polite"></div>
+</main>
+
+<button class="fab" id="addBtnMobile" type="button" aria-label="本を追加">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+</button>
+
+<div class="selbar" id="selbar">
+  <div class="selbar-inner">
+    <strong id="selCount">0 件選択中</strong>
+    <div class="spacer"></div>
+    <button class="btn ghost" id="clearSelBtn" type="button">選択解除</button>
+    <button class="btn danger" id="deleteSelBtn" type="button">削除</button>
+  </div>
+</div>
+
+<!-- 追加ダイアログ -->
+<dialog id="addDialog" class="sheet">
+  <form class="dlg" id="addForm" novalidate>
+    <div class="dlg-head">
+      <h2>本を追加</h2>
+      <button class="btn icon ghost" type="button" data-close aria-label="閉じる">✕</button>
+    </div>
+    <div class="dlg-body">
+      <div class="form-error hidden" id="addError"></div>
+      <div class="form-grid">
+        <label class="full"><span>ISBN</span>
+          <input class="field" name="isbn" autocomplete="off" placeholder="9784XXXXXXXXX" enterkeyhint="next">
+        </label>
+        <div class="full toggles">
+          <label><input type="checkbox" name="fill" checked> openBD から書誌情報を自動入力する (ISBN が必要)</label>
+          <label><input type="checkbox" name="checkDuplicate" checked> 重複していたら登録しない</label>
+        </div>
+        <label class="full"><span>タイトル <em id="titleReq">*</em></span>
+          <input class="field" name="title" autocomplete="off">
+        </label>
+        <label><span>著者</span><input class="field" name="author" autocomplete="off"></label>
+        <label><span>出版社</span><input class="field" name="publisher" autocomplete="off"></label>
+        <label><span>価格 (円)</span><input class="field" name="price" inputmode="numeric" autocomplete="off"></label>
+        <label><span>ジャンル</span><input class="field" name="genre" list="genreList" autocomplete="off"></label>
+        <label class="full"><span>JAN コード</span><input class="field" name="jan_code" inputmode="numeric" autocomplete="off"></label>
+        <label class="full"><span>メモ</span><textarea class="field" name="memo"></textarea></label>
+      </div>
+      <p class="hint">タイトルか有効な ISBN のどちらかが必要です。自動入力を使うと、見つかった項目は openBD の値で上書きされます。</p>
+      <datalist id="genreList"></datalist>
+    </div>
+    <div class="dlg-foot">
+      <div class="toggles" style="margin-right:auto">
+        <label><input type="checkbox" name="keepOpen"> 続けて登録する</label>
+      </div>
+      <button class="btn" type="button" data-close>キャンセル</button>
+      <button class="btn primary" type="submit" id="addSubmit">追加</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- 詳細ダイアログ -->
+<dialog id="detailDialog" class="sheet">
+  <div class="dlg">
+    <div class="dlg-head">
+      <h2 id="detailTitle">詳細</h2>
+      <button class="btn icon ghost" type="button" data-close aria-label="閉じる">✕</button>
+    </div>
+    <div class="dlg-body"><dl class="detail" id="detailBody"></dl></div>
+    <div class="dlg-foot">
+      <button class="btn" type="button" data-close>閉じる</button>
+      <button class="btn danger" type="button" id="detailDeleteBtn">削除</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- 確認ダイアログ -->
+<dialog id="confirmDialog">
+  <div class="dlg">
+    <div class="dlg-head"><h2 id="confirmTitle">確認</h2></div>
+    <div class="dlg-body" id="confirmBody"></div>
+    <div class="dlg-foot">
+      <button class="btn" type="button" id="confirmCancel">キャンセル</button>
+      <button class="btn danger" type="button" id="confirmOk">削除する</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- トークンダイアログ -->
+<dialog id="tokenDialog">
+  <form class="dlg" id="tokenForm">
+    <div class="dlg-head">
+      <h2>トークン設定</h2>
+      <button class="btn icon ghost" type="button" data-close aria-label="閉じる">✕</button>
+    </div>
+    <div class="dlg-body">
+      <div class="form-error hidden" id="tokenError">認証に失敗しました。トークンを入力してください。</div>
+      <div class="form-grid">
+        <label class="full"><span>トークン</span>
+          <input class="field" type="password" name="token" autocomplete="current-password">
+        </label>
+      </div>
+      <p class="hint">サーバーを <code>--token</code> 付きで起動している場合に必要です。このブラウザにのみ保存されます。</p>
+    </div>
+    <div class="dlg-foot">
+      <button class="btn" type="button" id="tokenClear">削除</button>
+      <button class="btn primary" type="submit">保存</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="toasts" id="toasts"></div>
+
+<script>
+"use strict";
+
+/* ================= utilities ================= */
+const $ = (sel, root = document) => root.querySelector(sel);
+
+function el(tag, attrs = {}, ...children) {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (v == null || v === false) continue;
+    if (k === "class") node.className = v;
+    else if (k === "dataset") Object.assign(node.dataset, v);
+    else if (k.startsWith("on")) node.addEventListener(k.slice(2), v);
+    else node.setAttribute(k, v === true ? "" : v);
+  }
+  for (const c of children.flat()) {
+    if (c == null || c === false) continue;
+    node.append(c instanceof Node ? c : document.createTextNode(String(c)));
+  }
+  return node;
+}
+
+function toast(msg, kind = "") {
+  const t = el("div", { class: "toast " + kind, role: "status" }, msg);
+  $("#toasts").append(t);
+  setTimeout(() => t.remove(), kind === "error" ? 5000 : 3000);
+}
+
+const storage = {
+  get(k) { try { return localStorage.getItem(k) || ""; } catch { return ""; } },
+  set(k, v) { try { v ? localStorage.setItem(k, v) : localStorage.removeItem(k); } catch {} },
+};
+const TOKEN_KEY = "shisho.token";
+const PREF_KEY = "shisho.prefs";
+
+const yen = (n) => n == null ? "" : "¥" + n.toLocaleString("ja-JP");
+const norm = (s) => (s || "").normalize("NFKC").toLowerCase();
+
+/* ================= API ================= */
+class AuthError extends Error {}
+
+// リクエストはすべて JSON ボディで送る。トークンもボディの "token" に入れる。
+async function api(method, payload = {}) {
+  const body = { ...payload };
+  const token = storage.get(TOKEN_KEY);
+  if (token) body.token = token;
+  const res = await fetch("books", {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+    cache: "no-store",
+  });
+  if (res.status === 401) throw new AuthError("認証に失敗しました");
+  const text = await res.text();
+  if (!res.ok) {
+    const err = new Error(text || `HTTP ${res.status}`);
+    err.status = res.status;
+    throw err;
+  }
+  return text;
+}
+
+// サーバーは NULL を "<nil>"、価格の NULL を -1 で返すので空値に変換する
+function normalizeBook(raw) {
+  const s = (v) => (v == null || v === "<nil>") ? "" : String(v);
+  const price = typeof raw.Price === "number" && raw.Price >= 0 ? raw.Price : null;
+  return {
+    id: raw.Id,
+    title: s(raw.Title),
+    author: s(raw.Author),
+    publisher: s(raw.Publisher),
+    genre: s(raw.Genre),
+    memo: s(raw.Memo),
+    isbn: s(raw.ISBN),
+    jan: s(raw.JanCode),
+    price,
+  };
+}
+
+/* ================= state ================= */
+const state = {
+  books: [],
+  visible: [],
+  selected: new Set(),
+  loading: false,
+  error: "",
+  q: "",
+  genre: "",
+  sort: "id-desc",
+};
+
+try {
+  const p = JSON.parse(storage.get(PREF_KEY) || "{}");
+  if (p.sort) state.sort = p.sort;
+  if (p.keepOpen) $("#addForm").keepOpen.checked = true;
+} catch {}
+function savePrefs() {
+  storage.set(PREF_KEY, JSON.stringify({ sort: state.sort, keepOpen: $("#addForm").keepOpen.checked }));
+}
+
+async function loadBooks() {
+  state.loading = true;
+  state.error = "";
+  render();
+  try {
+    const text = await api("QUERY");
+    const data = JSON.parse(text || "[]") || [];
+    state.books = data.map(normalizeBook);
+    const ids = new Set(state.books.map((b) => b.id));
+    for (const id of [...state.selected]) if (!ids.has(id)) state.selected.delete(id);
+  } catch (e) {
+    if (e instanceof AuthError) {
+      state.error = "認証が必要です。右上の鍵アイコンからトークンを設定してください。";
+      openTokenDialog(true);
+    } else {
+      state.error = "本の一覧を取得できませんでした (" + e.message + ")";
+    }
+  } finally {
+    state.loading = false;
+    render();
+  }
+}
+
+/* ================= rendering ================= */
+function computeVisible() {
+  const terms = norm(state.q).split(/\s+/).filter(Boolean);
+  let list = state.books.filter((b) => {
+    if (state.genre && b.genre !== state.genre) return false;
+    if (!terms.length) return true;
+    const hay = norm([b.title, b.author, b.publisher, b.genre, b.memo, b.isbn, b.jan].join("\n"));
+    return terms.every((t) => hay.includes(t));
+  });
+
+  const cmpStr = (a, b) => {
+    if (!a && b) return 1;
+    if (a && !b) return -1;
+    return a.localeCompare(b, "ja");
+  };
+  const cmpPrice = (dir) => (a, b) => {
+    if (a.price == null && b.price == null) return 0;
+    if (a.price == null) return 1;
+    if (b.price == null) return -1;
+    return dir * (a.price - b.price);
+  };
+  const sorters = {
+    "id-desc": (a, b) => b.id - a.id,
+    "id-asc": (a, b) => a.id - b.id,
+    "title": (a, b) => cmpStr(a.title, b.title) || a.id - b.id,
+    "author": (a, b) => cmpStr(a.author, b.author) || cmpStr(a.title, b.title),
+    "price-desc": cmpPrice(-1),
+    "price-asc": cmpPrice(1),
+  };
+  list.sort(sorters[state.sort] || sorters["id-desc"]);
+  return list;
+}
+
+function renderGenres() {
+  const genres = [...new Set(state.books.map((b) => b.genre).filter(Boolean))].sort((a, b) => a.localeCompare(b, "ja"));
+  const sel = $("#genre");
+  const cur = state.genre;
+  sel.replaceChildren(el("option", { value: "" }, "すべてのジャンル"), ...genres.map((g) => el("option", { value: g }, g)));
+  if (cur && !genres.includes(cur)) state.genre = "";
+  sel.value = state.genre;
+  $("#genreList").replaceChildren(...genres.map((g) => el("option", { value: g })));
+}
+
+function renderRow(b) {
+  const selected = state.selected.has(b.id);
+  const sub = [b.author, b.publisher].filter(Boolean).join(" · ");
+  return el("div", {
+      class: "row" + (selected ? " selected" : ""),
+      dataset: { id: b.id },
+      onclick: (ev) => {
+        if (ev.target.closest(".check")) return;
+        if (state.selected.size > 0) toggleSelect(b.id);
+        else openDetail(b);
+      },
+    },
+    el("label", { class: "check", "aria-label": "選択" },
+      el("input", { type: "checkbox", checked: selected, onchange: () => toggleSelect(b.id) })),
+    el("div", { class: "main" },
+      el("div", { class: "title" }, b.title || el("span", { style: "color:var(--muted)" }, "(タイトルなし)")),
+      b.memo && el("div", { class: "memo" }, b.memo),
+      sub && el("div", { class: "sub" }, sub),
+      el("div", { class: "chips" },
+        b.genre && el("span", { class: "chip genre" }, b.genre),
+        b.price != null && el("span", { class: "chip" }, yen(b.price)),
+        b.isbn && el("span", { class: "chip" }, "ISBN " + b.isbn)),
+    ),
+    el("div", { class: "col" }, b.author),
+    el("div", { class: "col" }, b.publisher),
+    el("div", { class: "col" }, b.genre),
+    el("div", { class: "col num" }, yen(b.price)),
+    el("div", { class: "col mono" }, b.isbn),
+  );
+}
+
+function render() {
+  const list = $("#list");
+  $("#count").textContent = state.books.length ? `${state.books.length} 冊` : "";
+
+  if (state.loading && !state.books.length) {
+    list.replaceChildren(el("div", { class: "state" }, el("div", { class: "spinner" }), "読み込み中…"));
+    $("#resultInfo").textContent = "";
+    renderSelection();
+    return;
+  }
+  if (state.error) {
+    list.replaceChildren(el("div", { class: "state" },
+      el("div", { class: "big" }, state.error),
+      el("button", { class: "btn", type: "button", onclick: loadBooks }, "再試行")));
+    $("#resultInfo").textContent = "";
+    renderSelection();
+    return;
+  }
+
+  renderGenres();
+  state.visible = computeVisible();
+
+  if (!state.books.length) {
+    list.replaceChildren(el("div", { class: "state" },
+      el("div", { class: "big" }, "まだ本が登録されていません"),
+      "右下 (PC では右上) のボタンから追加できます"));
+  } else if (!state.visible.length) {
+    list.replaceChildren(el("div", { class: "state" },
+      el("div", { class: "big" }, "該当する本がありません"),
+      "検索条件を変えてみてください"));
+  } else {
+    const head = el("div", { class: "list-head" },
+      el("span"), el("span", {}, "タイトル"), el("span", {}, "著者"), el("span", {}, "出版社"),
+      el("span", {}, "ジャンル"), el("span", { style: "text-align:right" }, "価格"), el("span", {}, "ISBN"));
+    list.replaceChildren(head, ...state.visible.map(renderRow));
+  }
+
+  const filtered = state.visible.length !== state.books.length;
+  $("#resultInfo").textContent = filtered ? `${state.visible.length} / ${state.books.length} 件を表示` : "";
+  renderSelection();
+}
+
+function renderSelection() {
+  const n = state.selected.size;
+  $("#selbar").classList.toggle("show", n > 0);
+  $("#addBtnMobile").classList.toggle("lifted", n > 0);
+  $("#selCount").textContent = `${n} 件選択中`;
+  const all = $("#selectAll");
+  const visIds = state.visible.map((b) => b.id);
+  const selVis = visIds.filter((id) => state.selected.has(id)).length;
+  all.checked = visIds.length > 0 && selVis === visIds.length;
+  all.indeterminate = selVis > 0 && selVis < visIds.length;
+  all.disabled = visIds.length === 0;
+}
+
+function toggleSelect(id) {
+  state.selected.has(id) ? state.selected.delete(id) : state.selected.add(id);
+  const row = $(`.row[data-id="${id}"]`);
+  if (row) {
+    const on = state.selected.has(id);
+    row.classList.toggle("selected", on);
+    $("input[type=checkbox]", row).checked = on;
+  }
+  renderSelection();
+}
+
+/* ================= dialogs ================= */
+for (const d of document.querySelectorAll("dialog")) {
+  d.addEventListener("click", (ev) => {
+    if (ev.target.closest("[data-close]")) d.close();
+    else if (ev.target === d) d.close(); // 背景クリックで閉じる
+  });
+}
+
+function confirmDialog(title, body) {
+  const d = $("#confirmDialog");
+  $("#confirmTitle").textContent = title;
+  $("#confirmBody").replaceChildren(body);
+  return new Promise((resolve) => {
+    const done = (v) => { cleanup(); d.close(); resolve(v); };
+    const ok = () => done(true);
+    const cancel = () => done(false);
+    const onClose = () => { cleanup(); resolve(false); };
+    function cleanup() {
+      $("#confirmOk").removeEventListener("click", ok);
+      $("#confirmCancel").removeEventListener("click", cancel);
+      d.removeEventListener("close", onClose);
+    }
+    $("#confirmOk").addEventListener("click", ok);
+    $("#confirmCancel").addEventListener("click", cancel);
+    d.addEventListener("close", onClose);
+    d.showModal();
+    $("#confirmCancel").focus();
+  });
+}
+
+/* ---------- 詳細 ---------- */
+let detailBook = null;
+function openDetail(b) {
+  detailBook = b;
+  $("#detailTitle").textContent = b.title || "(タイトルなし)";
+  const rows = [
+    ["タイトル", b.title], ["著者", b.author], ["出版社", b.publisher], ["価格", yen(b.price)],
+    ["ジャンル", b.genre], ["ISBN", b.isbn], ["JAN コード", b.jan], ["メモ", b.memo], ["ID", String(b.id)],
+  ];
+  $("#detailBody").replaceChildren(...rows.flatMap(([k, v]) => [
+    el("dt", {}, k), el("dd", { class: v ? "" : "empty" }, v || "—"),
+  ]));
+  $("#detailDialog").showModal();
+}
+$("#detailDeleteBtn").addEventListener("click", async () => {
+  if (!detailBook) return;
+  $("#detailDialog").close();
+  await deleteBooks([detailBook]);
+});
+
+/* ---------- 削除 ---------- */
+async function deleteBooks(books) {
+  if (!books.length) return;
+  const body = books.length === 1
+    ? el("p", { style: "margin:0" }, `「${books[0].title || "(タイトルなし)"}」を削除します。この操作は取り消せません。`)
+    : el("div", {},
+        el("p", { style: "margin:0 0 8px" }, `${books.length} 冊を削除します。この操作は取り消せません。`),
+        el("ul", { style: "margin:0;padding-left:20px;max-height:200px;overflow:auto;color:var(--muted)" },
+          books.slice(0, 50).map((b) => el("li", {}, b.title || "(タイトルなし)")),
+          books.length > 50 && el("li", {}, `ほか ${books.length - 50} 冊`)));
+  if (!await confirmDialog("削除の確認", body)) return;
+
+  try {
+    await api("DELETE", { ids: books.map((b) => b.id) });
+    for (const b of books) state.selected.delete(b.id);
+    toast(`${books.length} 冊を削除しました`);
+  } catch (e) {
+    toast(e instanceof AuthError ? "認証に失敗しました" : "削除に失敗しました", "error");
+    if (e instanceof AuthError) openTokenDialog(true);
+  }
+  await loadBooks();
+}
+
+$("#deleteSelBtn").addEventListener("click", () => {
+  const books = state.books.filter((b) => state.selected.has(b.id));
+  deleteBooks(books);
+});
+$("#clearSelBtn").addEventListener("click", () => {
+  state.selected.clear();
+  render();
+});
+$("#selectAll").addEventListener("change", (ev) => {
+  for (const b of state.visible) ev.target.checked ? state.selected.add(b.id) : state.selected.delete(b.id);
+  render();
+});
+
+/* ---------- 追加 ---------- */
+const addForm = $("#addForm");
+function openAdd() {
+  $("#addError").classList.add("hidden");
+  updateTitleRequired();
+  $("#addDialog").showModal();
+  addForm.isbn.focus();
+}
+function updateTitleRequired() {
+  $("#titleReq").classList.toggle("hidden", !!addForm.isbn.value.trim());
+}
+addForm.isbn.addEventListener("input", updateTitleRequired);
+addForm.keepOpen.addEventListener("change", savePrefs);
+$("#addBtnDesktop").addEventListener("click", openAdd);
+$("#addBtnMobile").addEventListener("click", openAdd);
+
+function showAddError(msg) {
+  const box = $("#addError");
+  box.textContent = msg;
+  box.classList.remove("hidden");
+  box.scrollIntoView({ block: "nearest" });
+}
+
+addForm.addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  $("#addError").classList.add("hidden");
+
+  const f = addForm;
+  const str = (name) => f[name].value.trim() || undefined;
+  const params = {
+    title: str("title"),
+    author: str("author"),
+    publisher: str("publisher"),
+    genre: str("genre"),
+    memo: str("memo"),
+    isbn: str("isbn")?.replace(/[\s-]/g, ""),
+    jan_code: str("jan_code")?.replace(/\s/g, ""),
+  };
+  const priceText = str("price");
+  if (priceText) {
+    const p = Number(priceText.normalize("NFKC").replace(/[,¥円\s]/g, ""));
+    if (!Number.isInteger(p) || p < 0) return showAddError("価格は 0 以上の整数で入力してください。");
+    params.price = p;
+  }
+  const fill = f.fill.checked;
+  if (!params.title && !params.isbn) return showAddError("タイトルか ISBN のどちらかを入力してください。");
+  if (fill && !params.isbn) return showAddError("自動入力には ISBN が必要です。");
+
+  for (const k of Object.keys(params)) if (params[k] === undefined) delete params[k];
+
+  const submit = $("#addSubmit");
+  submit.disabled = true;
+  submit.textContent = "追加中…";
+  try {
+    const text = await api("POST", {
+      params,
+      fill,
+      "check-duplicate": f.checkDuplicate.checked,
+    });
+    if (text.trim() === "book duplicated.") {
+      showAddError("同じタイトルまたは ISBN の本がすでに登録されています。");
+      return;
+    }
+    let title = params.title || params.isbn;
+    try { title = normalizeBook(JSON.parse(text)).title || title; } catch {}
+    toast(`「${title}」を追加しました`);
+
+    const keepOpen = f.keepOpen.checked;
+    const keep = { fill: f.fill.checked, checkDuplicate: f.checkDuplicate.checked, keepOpen, genre: f.genre.value };
+    f.reset();
+    f.fill.checked = keep.fill;
+    f.checkDuplicate.checked = keep.checkDuplicate;
+    f.keepOpen.checked = keep.keepOpen;
+    if (keepOpen) {
+      f.genre.value = keep.genre; // 連続登録時はジャンルを引き継ぐ
+      updateTitleRequired();
+      f.isbn.focus();
+    } else {
+      $("#addDialog").close();
+    }
+    loadBooks();
+  } catch (e) {
+    if (e instanceof AuthError) {
+      $("#addDialog").close();
+      openTokenDialog(true);
+      return;
+    }
+    const messages = {
+      "invalid 'params'": "入力内容が正しくありません。ISBN が有効か確認してください。",
+      "failed to fill data": "openBD から書誌情報を取得できませんでした。自動入力をオフにして手入力してください。",
+    };
+    showAddError(messages[e.message.trim()] || (e.status === 400 && !e.message.startsWith("HTTP")
+      ? e.message : "登録に失敗しました (" + e.message + ")"));
+  } finally {
+    submit.disabled = false;
+    submit.textContent = "追加";
+  }
+});
+
+/* ---------- トークン ---------- */
+function openTokenDialog(failed = false) {
+  const d = $("#tokenDialog");
+  $("#tokenError").classList.toggle("hidden", !failed);
+  $("#tokenForm").token.value = storage.get(TOKEN_KEY);
+  if (!d.open) d.showModal();
+  $("#tokenForm").token.focus();
+}
+function updateTokenBtn() {
+  $("#tokenBtn").classList.toggle("has-token", !!storage.get(TOKEN_KEY));
+}
+$("#tokenBtn").addEventListener("click", () => openTokenDialog(false));
+$("#tokenForm").addEventListener("submit", (ev) => {
+  ev.preventDefault();
+  storage.set(TOKEN_KEY, ev.target.token.value.trim());
+  updateTokenBtn();
+  $("#tokenDialog").close();
+  loadBooks();
+});
+$("#tokenClear").addEventListener("click", () => {
+  storage.set(TOKEN_KEY, "");
+  $("#tokenForm").token.value = "";
+  updateTokenBtn();
+  toast("トークンを削除しました");
+});
+
+/* ---------- toolbar ---------- */
+let qTimer;
+$("#q").addEventListener("input", (ev) => {
+  clearTimeout(qTimer);
+  qTimer = setTimeout(() => { state.q = ev.target.value; render(); }, 120);
+});
+$("#genre").addEventListener("change", (ev) => { state.genre = ev.target.value; render(); });
+$("#sort").value = state.sort;
+$("#sort").addEventListener("change", (ev) => { state.sort = ev.target.value; savePrefs(); render(); });
+$("#reloadBtn").addEventListener("click", loadBooks);
+
+document.addEventListener("keydown", (ev) => {
+  if (ev.key === "/" && !ev.target.closest("input, textarea, select, dialog")) {
+    ev.preventDefault();
+    $("#q").focus();
+  }
+});
+
+updateTokenBtn();
+loadBooks();
+</script>
+</body>
+</html>

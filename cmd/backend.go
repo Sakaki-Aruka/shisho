@@ -1,7 +1,10 @@
 package cmd
 
 import (
+	"bytes"
+	_ "embed"
 	"encoding/json"
+	"io"
 	"log"
 	"net/http"
 	"strconv"
@@ -24,7 +27,8 @@ var handleCmd = &cobra.Command{
 func handle(cmd *cobra.Command, args []string) error {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("GET /books", bookGetEndpoint)
+	mux.HandleFunc("GET /{$}", indexEndpoint)
+	mux.HandleFunc("QUERY /books", bookGetEndpoint)
 	mux.HandleFunc("POST /books", bookAddEndpoint)
 	mux.HandleFunc("DELETE /books", bookDeleteEndpoint)
 
@@ -39,24 +43,57 @@ func handle(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+//go:embed web/index.html
+var indexHTML []byte
+
+// indexEndpoint serves the web UI (browse / add / delete books).
+func indexEndpoint(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Write(indexHTML)
+}
+
+// decodeJSONBody はリクエストボディを v にデコードする。
+// ボディが空なら何もしない (全フィールドがゼロ値のまま)。
+// 構文エラーや型の不一致があれば 400 を返して false を返す。
+func decodeJSONBody(w http.ResponseWriter, r *http.Request, v any, tag string) bool {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Printf("err (%s): failed to read a request body. (%s)\n", tag, err.Error())
+		return false
+	}
+	if len(bytes.TrimSpace(body)) == 0 {
+		return true
+	}
+	if err := json.Unmarshal(body, v); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("invalid request body"))
+		log.Printf("err (%s): invalid request body. (%s)\n", tag, err.Error())
+		return false
+	}
+	return true
+}
+
 func bookGetEndpoint(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Parshals map[string]string `json:"parshals"`
+		Exacsts  map[string]string `json:"exacts"`
+		Token    string            `json:"token"`
+	}
+
+	if !decodeJSONBody(w, r, &req, "get") {
+		return
+	}
 	if token != "" {
-		if t := r.Header.Get("token"); t != token {
+		if req.Token != token {
 			w.WriteHeader(http.StatusUnauthorized)
 			log.Printf("err (get): authentication failed")
 			return
 		}
 	}
-	parshals := map[string]string{}
-	exacts := map[string]string{}
-	if p := r.Header.Get("parshals"); p != "" {
-		json.Unmarshal([]byte(p), &parshals)
-	}
-	if ex := r.Header.Get("exacts"); ex != "" {
-		json.Unmarshal([]byte(ex), &exacts)
-	}
 
-	books, err := shishodb.FindBookByFilter(exacts, parshals)
+	books, err := shishodb.FindBookByFilter(req.Exacsts, req.Parshals)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		log.Printf("err (get): failed to find all books. (%s)\n", err.Error())
@@ -74,37 +111,26 @@ func bookGetEndpoint(w http.ResponseWriter, r *http.Request) {
 }
 
 func bookAddEndpoint(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Token          string         `json:"token"`
+		CheckDuplicate bool           `json:"check-duplicate"`
+		FillBookData   bool           `json:"fill"`
+		Params         models.NewBook `json:"params"`
+	}
+
+	if !decodeJSONBody(w, r, &req, "add") {
+		return
+	}
 	if token != "" {
-		if t := r.Header.Get("token"); t != token {
+		if req.Token != token {
 			w.WriteHeader(http.StatusUnauthorized)
-			log.Printf("err (get): authentication failed")
+			log.Println("err (add): authentication failed")
 			return
 		}
 	}
 
-	params := r.Header.Get("params")
-	if params == "" {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("need 'params'"))
-		log.Println("err (add): no params")
-		return
-	}
-
-	checkDuplicate := false
-	if f := r.Header.Get("check-duplicate"); strings.ToLower(f) == "true" {
-		checkDuplicate = true
-	}
-
-	new := models.NewBook{}
-	if err := json.Unmarshal([]byte(params), &new); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("invalid 'params'"))
-		log.Printf("err (add): invalid params. (%s)\n", err.Error())
-		return
-	}
-
-	if checkDuplicate {
-		if err := shishodb.CheckDuplicate(new); err != nil {
+	if req.CheckDuplicate {
+		if err := shishodb.CheckDuplicate(req.Params); err != nil {
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte("book duplicated."))
 			log.Println("err (add): duplicated")
@@ -112,16 +138,15 @@ func bookAddEndpoint(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if !new.CanRegister() {
+	if !req.Params.CanRegister() {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("invalid 'params'"))
 		log.Printf("err (add): invalid params.")
 		return
 	}
 
-	fill := r.Header.Get("fill")
-	if strings.ToLower(fill) == "true" {
-		if err := (&new).FillDataWithOpenBD(); err != nil {
+	if req.FillBookData {
+		if err := (&req.Params).FillDataWithOpenBD(); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte("failed to fill data"))
 			log.Printf("err (add): fill error. (%s)\n", err.Error())
@@ -129,13 +154,13 @@ func bookAddEndpoint(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if err := shishodb.InsertBook(new); err != nil {
+	if err := shishodb.InsertBook(req.Params); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		log.Printf("err (add): insert error. (%s)\n", err.Error())
 		return
 	}
 
-	book := new.ToBook()
+	book := req.Params.ToBook()
 	j, _ := json.Marshal(book)
 	w.WriteHeader(http.StatusOK)
 	w.Write(j)
@@ -143,38 +168,37 @@ func bookAddEndpoint(w http.ResponseWriter, r *http.Request) {
 }
 
 func bookDeleteEndpoint(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Token string  `json:"token"`
+		Ids   []int64 `json:"ids"`
+	}
+
+	if !decodeJSONBody(w, r, &req, "del") {
+		return
+	}
 	if token != "" {
-		if t := r.Header.Get("token"); t != token {
+		if req.Token != token {
 			w.WriteHeader(http.StatusUnauthorized)
-			log.Printf("err (get): authentication failed")
+			log.Printf("err (del): authentication failed")
 			return
 		}
 	}
 
-	ids := []int64{}
-	i := r.Header.Get("ids")
-	if i == "" {
+	if len(req.Ids) == 0 {
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("need the 'ids' header"))
-		log.Println("err (del): no 'ids'")
+		w.Write([]byte("need some ids"))
+		log.Println("err (del): zero ids")
 		return
 	}
 
-	if err := json.Unmarshal([]byte(i), &ids); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("invalid 'ids'"))
-		log.Printf("err (del): invalid ids. (%s)\n", err.Error())
-		return
-	}
-
-	if err := shishodb.DeleteBooksByIds(ids); err != nil {
+	if err := shishodb.DeleteBooksByIds(req.Ids); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		log.Printf("err (del): failed to delete. (%s)\n", err.Error())
 		return
 	}
 	w.WriteHeader(http.StatusOK)
 	strlist := []string{}
-	for _, id := range ids {
+	for _, id := range req.Ids {
 		strlist = append(strlist, strconv.FormatInt(id, 10))
 	}
 	log.Printf("info (del): delete books. (ids: %s)\n", strings.Join(strlist, ", "))
