@@ -78,7 +78,7 @@ func decodeJSONBody(w http.ResponseWriter, r *http.Request, v any, tag string) b
 func bookGetEndpoint(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Parshals map[string]string `json:"parshals"`
-		Exacsts  map[string]string `json:"exacts"`
+		Exacts   map[string]string `json:"exacts"`
 		Token    string            `json:"token"`
 	}
 
@@ -93,7 +93,7 @@ func bookGetEndpoint(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	books, err := shishodb.FindBookByFilter(req.Exacsts, req.Parshals)
+	books, err := shishodb.FindBookByFilter(req.Exacts, req.Parshals)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		log.Printf("err (get): failed to find all books. (%s)\n", err.Error())
