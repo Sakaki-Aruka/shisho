@@ -31,6 +31,7 @@ func handle(cmd *cobra.Command, args []string) error {
 	mux.HandleFunc("QUERY /books", bookGetEndpoint)
 	mux.HandleFunc("POST /books", bookAddEndpoint)
 	mux.HandleFunc("DELETE /books", bookDeleteEndpoint)
+	mux.HandleFunc("PATCH /books", bookModifyEndpoint)
 
 	log.Printf("listening on localhost:%d\n", port)
 	if token != "" {
@@ -75,6 +76,19 @@ func decodeJSONBody(w http.ResponseWriter, r *http.Request, v any, tag string) b
 	return true
 }
 
+func checkToken(w http.ResponseWriter, v string, tag string) bool {
+	if token == "" {
+		return true
+	}
+
+	if token != v {
+		w.WriteHeader(http.StatusUnauthorized)
+		log.Printf("err (%s) authentication failed.\n", tag)
+		return false
+	}
+	return true
+}
+
 func bookGetEndpoint(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Parshals map[string]string `json:"parshals"`
@@ -85,12 +99,9 @@ func bookGetEndpoint(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSONBody(w, r, &req, "get") {
 		return
 	}
-	if token != "" {
-		if req.Token != token {
-			w.WriteHeader(http.StatusUnauthorized)
-			log.Printf("err (get): authentication failed")
-			return
-		}
+
+	if !checkToken(w, req.Token, "get") {
+		return
 	}
 
 	books, err := shishodb.FindBookByFilter(req.Exacts, req.Parshals)
@@ -121,12 +132,9 @@ func bookAddEndpoint(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSONBody(w, r, &req, "add") {
 		return
 	}
-	if token != "" {
-		if req.Token != token {
-			w.WriteHeader(http.StatusUnauthorized)
-			log.Println("err (add): authentication failed")
-			return
-		}
+
+	if !checkToken(w, req.Token, "add") {
+		return
 	}
 
 	if req.CheckDuplicate {
@@ -176,12 +184,9 @@ func bookDeleteEndpoint(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSONBody(w, r, &req, "del") {
 		return
 	}
-	if token != "" {
-		if req.Token != token {
-			w.WriteHeader(http.StatusUnauthorized)
-			log.Printf("err (del): authentication failed")
-			return
-		}
+
+	if !checkToken(w, req.Token, "del") {
+		return
 	}
 
 	if len(req.Ids) == 0 {
@@ -202,6 +207,38 @@ func bookDeleteEndpoint(w http.ResponseWriter, r *http.Request) {
 		strlist = append(strlist, strconv.FormatInt(id, 10))
 	}
 	log.Printf("info (del): delete books. (ids: %s)\n", strings.Join(strlist, ", "))
+}
+
+func bookModifyEndpoint(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Token  string         `json:"token"`
+		Params models.NewBook `json:"params"`
+		Id     int64          `json:"id"`
+	}
+
+	if !checkToken(w, req.Token, "mod") {
+		return
+	}
+
+	if !decodeJSONBody(w, r, &req, "mod") {
+		return
+	}
+
+	if req.Id <= 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("invalid id"))
+		log.Printf("err (mod): invalid id")
+		return
+	}
+
+	if err := shishodb.UpdateBookById(req.Id, req.Params); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		log.Printf("err (mod): update failed. (%s)\n", err.Error())
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	log.Printf("info (mod): modify book. (id: %d)\n", req.Id)
 }
 
 var port uint16

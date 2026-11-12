@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	models "github.com/Sakaki-Aruka/shisho/models"
+	"github.com/doug-martin/goqu/v9"
 	"github.com/jmoiron/sqlx"
 	_ "modernc.org/sqlite"
 )
@@ -73,6 +74,24 @@ func DeleteBooksByIds(ids []int64) error {
 	return nil
 }
 
+func UpdateBookById(id int64, mod models.NewBook) error {
+	sql, args, _ := goqu.Update("books").
+		Set(mod).
+		Where(goqu.Ex{
+			"id": id,
+		}).
+		ToSQL()
+
+	//debug
+	fmt.Printf("sql: %s, args: %v\n", sql, args)
+
+	if _, err := db.Exec(sql); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func InsertBook(book models.NewBook) error {
 	sql := `
 INSERT INTO books (author, title, price, publisher, genre, memo, isbn, jan_code)
@@ -94,7 +113,7 @@ func FindBookByFilter(exactFilters map[string]string, parshalFilters map[string]
 			}
 		}
 	}
-	
+
 	if len(parshalFilters) > 0 {
 		for k, v := range parshalFilters {
 			if v != "" {

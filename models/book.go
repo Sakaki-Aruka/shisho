@@ -59,14 +59,14 @@ func (b Book) MarshalJSON() ([]byte, error) {
 }
 
 type NewBook struct {
-	Author    *string `json:"author"`
-	Title     *string `json:"title"`
-	Price     *int32  `json:"price"`
-	Publisher *string `json:"publisher"`
-	Genre     *string `json:"genre"`
-	Memo      *string `json:"memo"`
-	Isbn      *string `json:"isbn"`
-	JanCode   *string `json:"jan_code"`
+	Author    *string `json:"author" db:"author" goqu:"omitnil"`
+	Title     *string `json:"title" db:"title" goqu:"omitnil"`
+	Price     *int32  `json:"price" db:"price" goqu:"omitnil"`
+	Publisher *string `json:"publisher" db:"publisher" goqu:"omitnil"`
+	Genre     *string `json:"genre" db:"genre" goqu:"omitnil"`
+	Memo      *string `json:"memo" db:"memo" goqu:"omitnil"`
+	Isbn      *string `json:"isbn" db:"isbn" goqu:"omitnil"`
+	JanCode   *string `json:"jan_code" db:"jan_code" goqu:"omitnil"`
 }
 
 func getOrDefault[T any](v *T) T {
