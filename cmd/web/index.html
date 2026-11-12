@@ -233,6 +233,28 @@
   dl.detail dd { margin: 0; word-break: break-word; white-space: pre-wrap; }
   dl.detail dd.empty { color: var(--muted); }
 
+  /* 詳細ダイアログ内でそのまま編集できる入力欄 (普段はテキストのように見せる) */
+  dl.detail.editable { align-items: start; }
+  dl.detail.editable dt { padding-top: 7px; }
+  dl.detail.editable dt label { cursor: pointer; }
+  dl.detail.editable dd.static { padding: 6px 0; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .inline {
+    display: block; width: 100%; min-height: 36px;
+    padding: 6px 8px; margin: 0;
+    border: 1px solid transparent; border-radius: 8px;
+    background: transparent;
+    font-size: 16px; /* iOS のズーム防止 */
+    line-height: 1.5;
+    transition: background .15s, border-color .15s;
+  }
+  .inline::placeholder { color: var(--muted); opacity: 1; }
+  .inline:hover { background: var(--surface-2); }
+  .inline:focus { background: var(--surface); border-color: var(--accent); outline: 1px solid var(--accent); outline-offset: -1px; }
+  .inline.changed:not(:focus) { background: var(--accent-soft); }
+  textarea.inline { min-height: 64px; resize: vertical; field-sizing: content; }
+  .edit-status { margin-right: auto; align-self: center; font-size: 13px; color: var(--muted); }
+  .edit-status.dirty { color: var(--accent); font-weight: 600; }
+
   /* ---------- toast ---------- */
   .toasts { position: fixed; left: 50%; transform: translateX(-50%); top: calc(12px + env(safe-area-inset-top)); z-index: 100; display: flex; flex-direction: column; gap: 8px; width: min(440px, calc(100vw - 32px)); pointer-events: none; }
   .toast { background: var(--text); color: var(--bg); padding: 10px 14px; border-radius: 10px; box-shadow: var(--shadow); font-size: 14px; animation: pop .2s ease; }
@@ -348,17 +370,41 @@
 
 <!-- 詳細ダイアログ -->
 <dialog id="detailDialog" class="sheet">
-  <div class="dlg">
+  <form class="dlg" id="editForm" novalidate autocomplete="off">
     <div class="dlg-head">
       <h2 id="detailTitle">詳細</h2>
       <button class="btn icon ghost" type="button" data-close aria-label="閉じる">✕</button>
     </div>
-    <div class="dlg-body"><dl class="detail" id="detailBody"></dl></div>
-    <div class="dlg-foot">
-      <button class="btn" type="button" data-close>閉じる</button>
-      <button class="btn danger" type="button" id="detailDeleteBtn">削除</button>
+    <div class="dlg-body">
+      <div class="form-error hidden" id="editError"></div>
+      <dl class="detail editable">
+        <dt><label for="ed-title">タイトル</label></dt>
+        <dd><input class="inline" id="ed-title" name="title" placeholder="—"></dd>
+        <dt><label for="ed-author">著者</label></dt>
+        <dd><input class="inline" id="ed-author" name="author" placeholder="—"></dd>
+        <dt><label for="ed-publisher">出版社</label></dt>
+        <dd><input class="inline" id="ed-publisher" name="publisher" placeholder="—"></dd>
+        <dt><label for="ed-price">価格 (円)</label></dt>
+        <dd><input class="inline" id="ed-price" name="price" inputmode="numeric" placeholder="—"></dd>
+        <dt><label for="ed-genre">ジャンル</label></dt>
+        <dd><input class="inline" id="ed-genre" name="genre" list="genreList" placeholder="—"></dd>
+        <dt><label for="ed-isbn">ISBN</label></dt>
+        <dd><input class="inline" id="ed-isbn" name="isbn" placeholder="—"></dd>
+        <dt><label for="ed-jan">JAN コード</label></dt>
+        <dd><input class="inline" id="ed-jan" name="jan_code" inputmode="numeric" placeholder="—"></dd>
+        <dt><label for="ed-memo">メモ</label></dt>
+        <dd><textarea class="inline" id="ed-memo" name="memo" rows="2" placeholder="—"></textarea></dd>
+        <dt>ID</dt>
+        <dd class="static" id="detailId"></dd>
+      </dl>
     </div>
-  </div>
+    <div class="dlg-foot">
+      <span class="edit-status" id="editStatus">項目をクリックすると編集できます</span>
+      <button class="btn danger" type="button" id="detailDeleteBtn">削除</button>
+      <button class="btn" type="button" data-close id="detailCloseBtn">閉じる</button>
+      <button class="btn primary" type="submit" id="editSubmit" disabled>保存</button>
+    </div>
+  </form>
 </dialog>
 
 <!-- 確認ダイアログ -->
@@ -662,17 +708,24 @@ function toggleSelect(id) {
 }
 
 /* ================= dialogs ================= */
+// 閉じる前に確認を挟みたいダイアログは closeGuards に関数を登録する
+const closeGuards = new Map();
+function requestClose(d) {
+  const guard = closeGuards.get(d);
+  guard ? guard() : d.close();
+}
 for (const d of document.querySelectorAll("dialog")) {
   d.addEventListener("click", (ev) => {
-    if (ev.target.closest("[data-close]")) d.close();
-    else if (ev.target === d) d.close(); // 背景クリックで閉じる
+    if (ev.target.closest("[data-close]")) requestClose(d);
+    else if (ev.target === d) requestClose(d); // 背景クリックで閉じる
   });
 }
 
-function confirmDialog(title, body) {
+function confirmDialog(title, body, { ok = "削除する" } = {}) {
   const d = $("#confirmDialog");
   $("#confirmTitle").textContent = title;
   $("#confirmBody").replaceChildren(body);
+  $("#confirmOk").textContent = ok;
   return new Promise((resolve) => {
     const done = (v) => { cleanup(); d.close(); resolve(v); };
     const ok = () => done(true);
@@ -691,23 +744,155 @@ function confirmDialog(title, body) {
   });
 }
 
-/* ---------- 詳細 ---------- */
+/* ---------- 詳細 / 編集 ---------- */
+// name: フォームの name 兼 PATCH の params のキー / key: normalizeBook 後のキー
+const EDIT_FIELDS = [
+  { name: "title", key: "title" },
+  { name: "author", key: "author" },
+  { name: "publisher", key: "publisher" },
+  { name: "price", key: "price", clean: (s) => s.normalize("NFKC").replace(/[,¥円\s]/g, "") },
+  { name: "genre", key: "genre" },
+  { name: "isbn", key: "isbn", clean: (s) => s.replace(/[\s-]/g, "") },
+  { name: "jan_code", key: "jan", clean: (s) => s.replace(/\s/g, "") },
+  { name: "memo", key: "memo" },
+];
+const editForm = $("#editForm");
+const fieldValue = (f) => {
+  const v = editForm[f.name].value.trim();
+  return f.clean ? f.clean(v) : v;
+};
+const originalValue = (f, b) => f.key === "price" ? (b.price == null ? "" : String(b.price)) : b[f.key];
+
 let detailBook = null;
+let detailDirty = false;
+let saving = false;
+
 function openDetail(b) {
   detailBook = b;
   $("#detailTitle").textContent = b.title || "(タイトルなし)";
-  const rows = [
-    ["タイトル", b.title], ["著者", b.author], ["出版社", b.publisher], ["価格", yen(b.price)],
-    ["ジャンル", b.genre], ["ISBN", b.isbn], ["JAN コード", b.jan], ["メモ", b.memo], ["ID", String(b.id)],
-  ];
-  $("#detailBody").replaceChildren(...rows.flatMap(([k, v]) => [
-    el("dt", {}, k), el("dd", { class: v ? "" : "empty" }, v || "—"),
-  ]));
+  $("#detailId").textContent = String(b.id);
+  for (const f of EDIT_FIELDS) editForm[f.name].value = originalValue(f, b);
+  $("#editError").classList.add("hidden");
+  updateDirty();
   $("#detailDialog").showModal();
+  $("#detailCloseBtn").focus(); // 開いた直後は入力欄にフォーカスしない (スマホでキーボードが出ないように)
 }
+
+function changedFields() {
+  if (!detailBook) return [];
+  return EDIT_FIELDS.filter((f) => fieldValue(f) !== originalValue(f, detailBook));
+}
+
+function updateDirty() {
+  const changed = new Set(changedFields().map((f) => f.name));
+  for (const f of EDIT_FIELDS) editForm[f.name].classList.toggle("changed", changed.has(f.name));
+  detailDirty = changed.size > 0;
+  $("#editSubmit").disabled = !detailDirty || saving;
+  const status = $("#editStatus");
+  status.textContent = detailDirty ? `${changed.size} 項目を変更中` : "項目をクリックすると編集できます";
+  status.classList.toggle("dirty", detailDirty);
+}
+editForm.addEventListener("input", () => {
+  $("#editError").classList.add("hidden");
+  updateDirty();
+});
+editForm.addEventListener("keydown", (ev) => {
+  if (ev.key === "Enter" && (ev.ctrlKey || ev.metaKey)) {
+    ev.preventDefault();
+    editForm.requestSubmit();
+  }
+});
+
+function showEditError(msg) {
+  const box = $("#editError");
+  box.textContent = msg;
+  box.classList.remove("hidden");
+  box.scrollIntoView({ block: "nearest" });
+}
+
+// 未保存の変更があるときは閉じる前に確認する
+const detailDialog = $("#detailDialog");
+async function closeDetail() {
+  if (detailDirty && !saving) {
+    const discard = await confirmDialog("変更を破棄しますか？",
+      el("p", { style: "margin:0" }, "保存していない変更があります。閉じると変更は失われます。"),
+      { ok: "破棄して閉じる" });
+    if (!discard) return;
+  }
+  detailDialog.close();
+}
+closeGuards.set(detailDialog, closeDetail);
+detailDialog.addEventListener("cancel", (ev) => { // Esc キー
+  if (detailDirty) {
+    ev.preventDefault();
+    closeDetail();
+  }
+});
+detailDialog.addEventListener("close", () => { detailDirty = false; });
+
+editForm.addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  if (!detailBook || saving) return;
+  $("#editError").classList.add("hidden");
+
+  const changed = changedFields();
+  if (!changed.length) return;
+
+  const params = {};
+  for (const f of changed) {
+    const v = fieldValue(f);
+    if (f.key === "price") {
+      if (v === "") {
+        editForm.price.focus();
+        return showEditError("価格を空にすることはできません。不要な場合は 0 を入力してください。");
+      }
+      const p = Number(v);
+      if (!Number.isInteger(p) || p < 0 || p > 2147483647) {
+        editForm.price.focus();
+        return showEditError("価格は 0 以上の整数で入力してください。");
+      }
+      params.price = p;
+    } else {
+      params[f.name] = v;
+    }
+  }
+
+  const updated = { ...detailBook };
+  for (const f of changed) updated[f.key] = f.key === "price" ? params.price : params[f.name];
+  if (!updated.title && !updated.isbn) return showEditError("タイトルか ISBN のどちらかは残してください。");
+
+  const submit = $("#editSubmit");
+  saving = true;
+  submit.disabled = true;
+  submit.textContent = "保存中…";
+  try {
+    await api("PATCH", { id: detailBook.id, params });
+    const i = state.books.findIndex((b) => b.id === updated.id);
+    if (i >= 0) state.books[i] = updated;
+    detailBook = updated;
+    detailDirty = false;
+    detailDialog.close();
+    toast(`「${updated.title || updated.isbn || "(タイトルなし)"}」を更新しました`);
+    render();
+    loadBooks(); // サーバー側の値で取り直す
+  } catch (e) {
+    if (e instanceof AuthError) {
+      showEditError("認証に失敗しました。トークンを設定してからもう一度保存してください。");
+      openTokenDialog(true);
+    } else {
+      showEditError("保存に失敗しました (" + e.message + ")");
+    }
+  } finally {
+    saving = false;
+    submit.textContent = "保存";
+    if (detailDialog.open) updateDirty();
+  }
+});
+
 $("#detailDeleteBtn").addEventListener("click", async () => {
   if (!detailBook) return;
-  $("#detailDialog").close();
+  detailDirty = false;
+  detailDialog.close();
   await deleteBooks([detailBook]);
 });
 

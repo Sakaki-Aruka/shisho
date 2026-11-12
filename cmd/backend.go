@@ -216,11 +216,11 @@ func bookModifyEndpoint(w http.ResponseWriter, r *http.Request) {
 		Id     int64          `json:"id"`
 	}
 
-	if !checkToken(w, req.Token, "mod") {
+	if !decodeJSONBody(w, r, &req, "mod") {
 		return
 	}
 
-	if !decodeJSONBody(w, r, &req, "mod") {
+	if !checkToken(w, req.Token, "mod") {
 		return
 	}
 
