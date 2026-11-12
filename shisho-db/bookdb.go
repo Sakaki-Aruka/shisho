@@ -75,15 +75,12 @@ func DeleteBooksByIds(ids []int64) error {
 }
 
 func UpdateBookById(id int64, mod models.NewBook) error {
-	sql, args, _ := goqu.Update("books").
+	sql, _, _ := goqu.Update("books").
 		Set(mod).
 		Where(goqu.Ex{
 			"id": id,
 		}).
 		ToSQL()
-
-	//debug
-	fmt.Printf("sql: %s, args: %v\n", sql, args)
 
 	if _, err := db.Exec(sql); err != nil {
 		return err
